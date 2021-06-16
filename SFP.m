@@ -233,16 +233,27 @@ classdef SFP
             end
             figure(fig);
             
+            % associate a color with each region
             cols = struct('X', [1 0.5 0.5], ...
                 'Y', [0.5 1 0.5], ...
                 'Z', [0.5 0.5 1]);
             
+            % offset the height of each region slightly
+            % to properly render overlapping areas
+            scale = struct('X', 0.99, ...
+                'Y', 1.00, ...
+                'Z', 1.01);
+            
             hold on;
             for ax = upper(axes)
-                h = trisurf(obj.Tri.(ax));
+                tri = obj.Tri.(ax);
+                tri = triangulation(tri.ConnectivityList, ...
+                    scale.(ax) * tri.Points);
+                h = trisurf(tri);
+                
+                h.EdgeAlpha = 0.3;
                 h.FaceAlpha = 0.5;
                 h.FaceColor = cols.(ax);
-                h.EdgeAlpha = 0.3;
                 
                 for b = obj.Boundaries.(ax)
                     p = plot3(obj.Sphere.Vertices(b{1}, 1), ...
@@ -251,23 +262,6 @@ classdef SFP
                     p.Color = 0.75 * cols.(ax);
                     p.LineWidth = 2.5;
                 end
-                
-%                 [holes, islands] = obj.findHoles(ax, 20);
-%                 for b = holes
-%                     p = plot3(obj.Sphere.Vertices(b{1}, 1), ...
-%                         obj.Sphere.Vertices(b{1}, 2), ...
-%                         obj.Sphere.Vertices(b{1}, 3));
-%                     p.Color = 0.25 * cols.(ax);
-%                     p.LineWidth = 5;
-%                 end
-%                 
-%                 for b = islands
-%                     p = plot3(obj.Sphere.Vertices(b{1}, 1), ...
-%                         obj.Sphere.Vertices(b{1}, 2), ...
-%                         obj.Sphere.Vertices(b{1}, 3));
-%                     p.Color = cols.(ax);
-%                     p.LineWidth = 7;
-%                 end
                 
             end
             hold off;
