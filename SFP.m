@@ -1,4 +1,4 @@
-classdef SFP
+classdef SFP < handle
     %SFP Spherical Frame Projection
     %   Detailed explanation goes here (TODO)
     %
@@ -42,11 +42,11 @@ classdef SFP
             end
             
             obj.N = resolution;
-            obj = obj.init();
+            obj.init();
             
-            obj = obj.indexFramePoints();
-            obj = obj.triangulateRegions();
-            obj = obj.updatePublicMembers();
+            obj.indexFramePoints();
+            obj.triangulateRegions();
+            obj.updatePublicMembers();
         end 
         
         function obj = fillHoles(obj, threshold, axes)
@@ -99,7 +99,7 @@ classdef SFP
                 obj.Idx.(ax) = unique([obj.Idx.(ax); connected]);
             end
             
-            obj = obj.triangulateRegions();
+            obj.triangulateRegions();
         end
         
         function obj = trimIslands(obj, threshold, axes)
@@ -151,7 +151,7 @@ classdef SFP
                 end
             end
             
-            obj = obj.triangulateRegions();
+            obj.triangulateRegions();
         end
         
         function [holes, islands] = findHoles(obj, ax, threshold)
@@ -256,9 +256,9 @@ classdef SFP
                 h.FaceColor = cols.(ax);
                 
                 for b = obj.Boundaries.(ax)
-                    p = plot3(obj.Sphere.Vertices(b{1}, 1), ...
-                        obj.Sphere.Vertices(b{1}, 2), ...
-                        obj.Sphere.Vertices(b{1}, 3));
+                    p = plot3(scale.(ax) * obj.Sphere.Vertices(b{1}, 1), ...
+                        scale.(ax) * obj.Sphere.Vertices(b{1}, 2), ...
+                        scale.(ax) * obj.Sphere.Vertices(b{1}, 3));
                     p.Color = 0.75 * cols.(ax);
                     p.LineWidth = 2.5;
                 end
@@ -318,7 +318,7 @@ classdef SFP
                 
                 I = obj.Tri.(ax).freeBoundary();
                 
-                gaps = [0, find(I(2:end, 1) ~= I(1:end-1, 2))'];
+                gaps = [0, find(I(2:end, 1) ~= I(1:end-1, 2))', size(I, 1)];
                 
                 boundaries = cell(1, numel(gaps) - 1);
                 
@@ -344,7 +344,7 @@ classdef SFP
         end
     end
     
-    methods (Static, Access = private)
+    methods (Static, Access = protected)
         function I = findNearest(A, B)
             [~, I] = min(vecnorm(A - B, 2, 2));
         end
