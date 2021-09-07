@@ -1,15 +1,16 @@
 classdef SFP < handle
     %SFP Spherical Frame Projection
-    %   Detailed explanation goes here (TODO)
-    %
-    %   
+    %   Use the Spherical Frame Projection method to generate and
+    %   visualize a the range of motion for a 3D rotational joint.
     %
     %   2021 Enrico Eberhard
+    %
+    %   See also: SFPGUI
     
     properties (SetAccess = protected)
         N (1, 1) int16  % Icosphere order (resolution)
         q (:, 4) double % Underlying orientation data (array of quaternions)
-        Sphere (1,1) struct % Icosphere face and vertex structure 
+        Sphere (1,1) struct % Icosphere face and vertex structure
         X  % Structure of faces, vertices and boundaries for the X region
         Y  % Structure of faces, vertices and boundaries for the Y region
         Z  % Structure of faces, vertices and boundaries for the Z region
@@ -18,19 +19,26 @@ classdef SFP < handle
         Boundaries % IDs of the Sph.Vertices
         Faces      % IDs of the Sph.Faces that are counted as "interior"
         Idx        % IDs of the Sph.Vertices that match the
-        Pts        % Frame points 
-        Tri        % triangulation 
+        Pts        % Frame points
+        Tri        % triangulation
     end
     
     methods
         function obj = SFP(data, resolution)
-            %SFP Construct an instance of this class
-            %   Detailed explanation goes here
+            %SFP Constructor
+            %   obj = SFP(data) will construct an sfp object from
+            %   unit quaternion orientation data in the form of an
+            %   Nx4 matrix, where N is the number of samples and each
+            %   row contains the quaternion coefficients as w, x, y, z.
+            %
+            %   obj = SFP(data, resolution) will accept an integer
+            %   resolution argument between 1 and 5 (default 3) to specify
+            %   the order (number of faces) on the icosphere
             arguments
                 data double
                 resolution (1,1) int16 ...
                     {mustBeGreaterThan(resolution, 0), ...
-                     mustBeLessThan(resolution, 5)} = 3
+                    mustBeLessThan(resolution, 5)} = 3
             end
             if size(data, 2) == 4
                 obj.q = data;
@@ -47,12 +55,12 @@ classdef SFP < handle
             obj.indexFramePoints();
             obj.triangulateRegions();
             obj.updatePublicMembers();
-        end 
+        end
         
         function obj = fillHoles(obj, threshold, axes)
             % Fill holes in projected regions
-            %   sfp2 = sfp.fillHoles() will try to identify interior holes
-            %   in the projected region. This is useful when the sampled 
+            %   sfp.fillHoles() will try to identify interior holes
+            %   in the projected region. This is useful when the sampled
             %   orientation data has insufficent coverage, particularly at
             %   higher resolutions of the SFP icosphere. It returns a
             %   modified SFP object with the identified holes filled in by
@@ -66,14 +74,14 @@ classdef SFP < handle
             %   fillHoles(..., axes) takes a character array of axes for
             %   the regions to fill (for example, 'X' or 'YZ'). The default
             %   behaviour is to fill all regions ('XYZ').
-            %   
+            %
             %   The call to fillHoles may need to be repeated, as the
             %   infilling adds one layer of faces to the enclosing regions.
             %   If the radius of the hole therefore is more than two faces
             %   at any point, a smaller hole may remain.
             %
             %   Note that the projected region for a given frame axis
-            %   may contain "true" holes. 
+            %   may contain "true" holes.
             %
             %   See also: findHoles, trimIslands
             arguments
@@ -84,7 +92,7 @@ classdef SFP < handle
             for ax = upper(axes)
                 holes = obj.findHoles(ax, threshold);
                 
-                if isempty(holes) 
+                if isempty(holes)
                     continue
                 end
                 
@@ -104,7 +112,7 @@ classdef SFP < handle
         
         function obj = trimIslands(obj, threshold, axes)
             % Trim islands in projected regions
-            %   sfp2 = sfp.trimIslands() will try to identify exterior
+            %   sfp.trimIslands() will try to identify exterior
             %   islands in the projected region. This is useful when the
             %   sampled orientation data is noisy and has some outliers,
             %   particularly at higher resolutions of the SFP icosphere.
@@ -119,7 +127,7 @@ classdef SFP < handle
             %   trimIslands(..., axes) takes a character array of axes for
             %   the regions to trim (for example, 'X' or 'YZ'). The default
             %   behaviour is to trim all regions ('XYZ').
-            %   
+            %
             %   The call to trimIslands may need to be repeated, as the
             %   trimming removes one layer of faces from the exterior regions.
             %   If the radius of the island therefore is more than two faces
@@ -140,7 +148,7 @@ classdef SFP < handle
             for ax = upper(axes)
                 [~, islands] = obj.findHoles(ax, threshold);
                 
-                if isempty(islands) 
+                if isempty(islands)
                     continue
                 end
                 
@@ -211,7 +219,7 @@ classdef SFP < handle
             %   sfp.plot() renders the spherical frame project in a new
             %   figure. It draws the faces of the projected regions
             %   corresponding to the reachability of the X, Y, Z frame axes
-            %   in red, green and blue, respectively. 
+            %   in red, green and blue, respectively.
             %   The border of each region is also drawn.
             %
             %   plot(fig) takes an integer or existing figure handle on
@@ -245,6 +253,13 @@ classdef SFP < handle
                 'Z', 1.01);
             
             hold on;
+            hSphere = patch('Faces', obj.Sphere.Faces, ...
+                'Vertices', 0.98*obj.Sphere.Vertices);
+            
+            hSphere.FaceColor = [1, 1, 1];
+            hSphere.FaceAlpha = 0.2;
+            hSphere.EdgeAlpha = 0.05;
+            
             for ax = upper(axes)
                 tri = obj.Tri.(ax);
                 tri = triangulation(tri.ConnectivityList, ...
@@ -254,6 +269,10 @@ classdef SFP < handle
                 h.EdgeAlpha = 0.3;
                 h.FaceAlpha = 0.5;
                 h.FaceColor = cols.(ax);
+                
+                
+                hFrame = scatter3(obj.Pts.(ax)(:,1), ...
+                    obj.Pts.(ax)(:,2), obj.Pts.(ax)(:,3), 'k.');
                 
                 for b = obj.Boundaries.(ax)
                     p = plot3(scale.(ax) * obj.Sphere.Vertices(b{1}, 1), ...
@@ -267,6 +286,7 @@ classdef SFP < handle
             hold off;
             axis equal
             axis vis3d
+            axis([-1.1 1.1 -1.1 1.1 -1.1 1.1]);
         end
     end
     
@@ -287,13 +307,13 @@ classdef SFP < handle
             % Find the closest vertices to the orientation frame vectors
             %   ...
             [I, obj.Pts.X, obj.Pts.Y, obj.Pts.Z] = ...
-                deal(zeros(length(obj.q), 3));
+                deal(zeros(size(obj.q, 1), 3));
             
-            for t = 1:length(obj.q)
+            for t = 1:size(obj.q, 1)
                 obj.Pts.X(t, :) = obj.rotateVec(obj.q(t,:), [1 0 0]);
                 obj.Pts.Y(t, :) = obj.rotateVec(obj.q(t,:), [0 1 0]);
                 obj.Pts.Z(t, :) = obj.rotateVec(obj.q(t,:), [0 0 1]);
-
+                
                 % find closest V to p
                 I(t, 1) = obj.findNearest(obj.Sphere.Vertices, obj.Pts.X(t, :));
                 I(t, 2) = obj.findNearest(obj.Sphere.Vertices, obj.Pts.Y(t, :));
@@ -312,7 +332,12 @@ classdef SFP < handle
             for ax = ['X', 'Y', 'Z']
                 obj.Faces.(ax) = obj.findInteriorFaces(obj.Sphere.Faces, ...
                     obj.Idx.(ax));
-
+                
+                if isempty(obj.Faces.(ax))
+                    obj.Tri.(ax) = [];
+                    obj.Boundaries.(ax) = {};
+                    continue
+                end
                 obj.Tri.(ax) = triangulation(obj.Faces.(ax), ...
                     obj.Sphere.Vertices);
                 
@@ -360,7 +385,7 @@ classdef SFP < handle
             v = F(faces, :);
             vertices = unique(v(:));
         end
-
+        
         function FI = findInteriorFaces(F, I)
             % for a list of faces and vertex IDs, return all faces that are
             % exclusively connected to the given vertices
@@ -372,7 +397,7 @@ classdef SFP < handle
                 end
             end
         end
-
+        
         function v_ = rotateVec(q, v)
             % rotate a vector by a unit quaternion
             arguments
@@ -397,27 +422,27 @@ end
 
 %% Custom input validation functions
 function mustBeFigure(fig)
-    if ~(isa(fig, 'matlab.ui.Figure') || (isnumeric(fig) && fig >= 1))
-        msg = sprintf('Input type \"%s\" cannot be converted to a figure.', class(fig));
-        throwAsCaller(MException('SFP:mustBeFigure', msg));
-    end
+if ~(isa(fig, 'matlab.ui.Figure') || (isnumeric(fig) && fig >= 1))
+    msg = sprintf('Input type \"%s\" cannot be converted to a figure.', class(fig));
+    throwAsCaller(MException('SFP:mustBeFigure', msg));
+end
 end
 
 function mustBeAx(ax, dim)
-    arguments
-        ax
-        dim = 0
+arguments
+    ax
+    dim = 0
+end
+if dim == 1
+    if sum(upper(ax) == 'XYZ') ~= 1
+        msg = sprintf("Ax input must be 'X', 'Y', or 'Z'.");
+        throwAsCaller(MException('SFP:mustBeAx', msg));
     end
-    if dim == 1
-        if sum(upper(ax) == 'XYZ') ~= 1
-            msg = sprintf("Ax input must be 'X', 'Y', or 'Z'.");
-            throwAsCaller(MException('SFP:mustBeAx', msg));
-        end
-    else
-        if ~all(sum(upper(ax) == ('XYZ')'))
-            msg = sprintf("Ax input must only contain 'X', 'Y', or 'Z'.");
-            throwAsCaller(MException('SFP:mustBeAx', msg));
-        end
+else
+    if ~all(sum(upper(ax) == ('XYZ')'))
+        msg = sprintf("Ax input must only contain 'X', 'Y', or 'Z'.");
+        throwAsCaller(MException('SFP:mustBeAx', msg));
     end
+end
 end
 

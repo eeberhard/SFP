@@ -1,21 +1,32 @@
 classdef SFPGUI < SFP
     %SFPGUI
-    %   Graphical editor for the spherical frame projection class
-    %   (Documentation TODO)
+    %   Graphical editor for the spherical frame projection class, which
+    %   allows the reachable regions for each frame axis to be manually
+    %   adjusted to account for sparse or noisy samples.
     %
     %   2021 Enrico Eberhard
+    %
+    %   See also: SFP
     
     properties (Access = private, Hidden)
-        h
+        h   % Private data container handle
     end
     
     methods
-         function obj = SFPGUI(data, resolution)
+        function obj = SFPGUI(data, resolution)
+            % SFPGUI Constructor
+            %   Construct a Spherical Frame Projection with a graphical
+            %   editor for adjusting the boundary regions of each axis.
+            %
+            %   This constructor takes the same arguments as the base SFP
+            %   class.
+            %
+            %   See also: SFP
             arguments
                 data double
                 resolution (1,1) int16 ...
                     {mustBeGreaterThan(resolution, 0), ...
-                     mustBeLessThan(resolution, 5)} = 3
+                    mustBeLessThan(resolution, 5)} = 3
             end
             obj = obj@SFP(data, resolution);
             
@@ -34,9 +45,22 @@ classdef SFPGUI < SFP
             end
             
             obj.plot();
-         end
+        end
         
         function obj = edit(obj, ax, fig)
+            % Edit the SFP graphically
+            %
+            %   sfp.edit() will open the graphical editor for each axis
+            %   in a new figure. Reachable regions can be defined manually
+            %   by selecting or deselecting icosphere vertices.
+            %   Once the range of motion for a given axis has been edited
+            %   to satisfaction, the figure window can be closed.
+            %
+            %   sfp.edit(ax) will allow editing a single axis region,
+            %   where ax is one of 'x', 'y' or 'z'
+            %
+            %   sfp.edit(..., fig) takes an additional figure handle 
+            %   or figure ID where the graphical editing will be rendered
             arguments
                 obj
                 ax (1, 1) char {mustBeAx(ax, 1)}
@@ -51,7 +75,11 @@ classdef SFPGUI < SFP
             hSphere = patch('Faces', obj.Sphere.Faces, ...
                 'Vertices', 0.99*obj.Sphere.Vertices);
             hold on;
-            hFaces = trisurf(obj.Tri.(ax));
+            if ~isempty(obj.Tri.(ax))
+                hFaces = trisurf(obj.Tri.(ax));
+            else
+                hFaces = struct();
+            end
             
             hFrame = scatter3(obj.Pts.(ax)(:,1), ...
                 obj.Pts.(ax)(:,2), obj.Pts.(ax)(:,3), 'ro');
@@ -129,8 +157,10 @@ classdef SFPGUI < SFP
             obj.h.(ax).hIdx.ZData = obj.Sphere.Vertices(obj.Idx.(ax), 3);
             
             obj.triangulateRegions();
-            obj.h.(ax).hFaces.Faces = obj.Tri.(ax).ConnectivityList;
-            obj.h.(ax).hFaces.Vertices = obj.Tri.(ax).Points;
+            if ~isempty(obj.Tri.(ax))
+                obj.h.(ax).hFaces.Faces = obj.Tri.(ax).ConnectivityList;
+                obj.h.(ax).hFaces.Vertices = obj.Tri.(ax).Points;
+            end
             
             obj.redrawBoundary(ax);
         end
@@ -152,26 +182,26 @@ end
 
 %% Custom input validation functions
 function mustBeFigure(fig)
-    if ~(isa(fig, 'matlab.ui.Figure') || (isnumeric(fig) && fig >= 1))
-        msg = sprintf('Input type \"%s\" cannot be converted to a figure.', class(fig));
-        throwAsCaller(MException('SFP:mustBeFigure', msg));
-    end
+if ~(isa(fig, 'matlab.ui.Figure') || (isnumeric(fig) && fig >= 1))
+    msg = sprintf('Input type \"%s\" cannot be converted to a figure.', class(fig));
+    throwAsCaller(MException('SFP:mustBeFigure', msg));
+end
 end
 
 function mustBeAx(ax, dim)
-    arguments
-        ax
-        dim = 0
+arguments
+    ax
+    dim = 0
+end
+if dim == 1
+    if sum(upper(ax) == 'XYZ') ~= 1
+        msg = sprintf("Ax input must be 'X', 'Y', or 'Z'.");
+        throwAsCaller(MException('SFP:mustBeAx', msg));
     end
-    if dim == 1
-        if sum(upper(ax) == 'XYZ') ~= 1
-            msg = sprintf("Ax input must be 'X', 'Y', or 'Z'.");
-            throwAsCaller(MException('SFP:mustBeAx', msg));
-        end
-    else
-        if ~all(sum(upper(ax) == ('XYZ')'))
-            msg = sprintf("Ax input must only contain 'X', 'Y', or 'Z'.");
-            throwAsCaller(MException('SFP:mustBeAx', msg));
-        end
+else
+    if ~all(sum(upper(ax) == ('XYZ')'))
+        msg = sprintf("Ax input must only contain 'X', 'Y', or 'Z'.");
+        throwAsCaller(MException('SFP:mustBeAx', msg));
     end
+end
 end
