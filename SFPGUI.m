@@ -40,14 +40,14 @@ classdef SFPGUI < SFP
             uiwait(msgbox(msg, 'SFP GUI', 'help'));
             
             for ax = ['X', 'Y', 'Z']
-                obj.edit(ax);
-                uiwait(obj.h.(ax).fig)
+                [~, fig] = obj.edit(ax, figure());
+                uiwait(fig)
             end
             
             obj.plot();
         end
         
-        function obj = edit(obj, ax, fig)
+        function [obj, fig] = edit(obj, ax, fig)
             % Edit the SFP graphically
             %
             %   sfp.edit() will open the graphical editor for each axis
@@ -129,7 +129,6 @@ classdef SFPGUI < SFP
             end
             
             obj.h.(ax) = struct(...
-                'fig', fig, ...
                 'hSphere', hSphere, ...
                 'hFaces', hFaces, ...
                 'hFrame', hFrame, ...
