@@ -44,6 +44,7 @@ classdef SFPGUI < SFP
                 uiwait(fig)
             end
             
+            obj.updatePublicMembers();
             obj.plot();
         end
         
@@ -59,8 +60,8 @@ classdef SFPGUI < SFP
             %   sfp.edit(ax) will allow editing a single axis region,
             %   where ax is one of 'x', 'y' or 'z'
             %
-            %   sfp.edit(..., fig) takes an additional figure handle 
-            %   or figure ID where the graphical editing will be rendered
+            %   sfp.edit(..., fig) takes an additional figure handle
+            %   or figure ID where the graphical editing will be rendered.
             arguments
                 obj
                 ax (1, 1) char {mustBeAx(ax, 1)}
@@ -138,6 +139,40 @@ classdef SFPGUI < SFP
             hSphere.ButtonDownFcn = @(~, hit)(obj.onClick(hit, ax));
             obj.redrawBoundary(ax);
         end
+        
+        function obj = rotate(obj, R)
+            % Rotate the sampled data and regions
+            %
+            %   sfp.rotate(R) will rotate the stored orientation samples,
+            %   the underlying icosphere and the generated surface regions
+            %   by a supplied rotation R, which can take the form of either
+            %   a homogenous 3x3 rotation matrix or a unit quaternion.
+            %
+            %   Example:
+            %       % create an SFP from some orientation set Q
+            %       % and edit the regions with the GUI
+            %       sfp = SFPGUI(Q);
+            %       % rotate the SFP by 60 degrees about the X axis
+            %       sfp.rotate([0.866, 0.5, 0, 0]);
+            %       % plot the newly rotated SFP
+            %       sfp.plot()
+            arguments
+                obj
+                R double {validateRotation(R)} = eye(3)
+            end
+            
+            [q, R] = validateRotation(R);
+            
+            for t = 1:size(obj.q, 1)
+                obj.q(t, :) = SFP.hamilton(q, obj.q(t, :)) .* [1 -1 -1 -1];
+                obj.Pts.X(t, :) = obj.rotateVec(obj.q(t,:), [1 0 0]);
+                obj.Pts.Y(t, :) = obj.rotateVec(obj.q(t,:), [0 1 0]);
+                obj.Pts.Z(t, :) = obj.rotateVec(obj.q(t,:), [0 0 1]);
+            end
+            obj.Sphere.Vertices = obj.Sphere.Vertices * R';
+            obj.triangulateRegions();
+            obj.updatePublicMembers();
+        end
     end
     
     methods (Access = protected, Hidden)
@@ -178,6 +213,81 @@ classdef SFPGUI < SFP
     
 end
 
+%% Local functions
+
+function q = quatFromRot(R)
+%%QUATFROMROT
+%   Quaternion from rotation matrix
+%
+%   q = quatFromRot(R) takes a 3x3 rotation matrix and returns a quaternion
+%       for that rotation.
+%
+%   Code adapted from:
+%   http://www.peterkovesi.com/matlabfns/Rotations/matrix2quaternion.m
+%
+%   2018 Enrico Eberhard
+arguments
+    R (3,3) double
+end
+if any(isnan(R))
+    q = nan(1,4);
+    return
+end
+
+% Find rotation axis as the eigenvector having unit eigenvalue
+% Solve (R-I)v = 0;
+[v,d] = eig(R-eye(3));
+
+% The following code assumes the eigenvalues returned are not necessarily
+% sorted by size. This may be overcautious.
+d = diag(abs(d));   % Extract eigenvalues
+[~, ind] = sort(d); % Find index of smallest one
+if d(ind(1)) > 0.001   % Hopefully it is close to 0
+    warning('Rotation matrix is dubious');
+end
+
+axis = v(:,ind(1)); % Extract appropriate eigenvector
+if abs(norm(axis) - 1) > .0001     % Debug
+    warning('Non-unit rotation axis');
+end
+
+% Now determine the rotation angle
+twocostheta = trace(R)-1;
+twosinthetav = [R(3,2)-R(2,3), R(1,3)-R(3,1), R(2,1)-R(1,2)]';
+twosintheta = axis'*twosinthetav;
+
+theta = atan2(twosintheta, twocostheta);
+
+q = [cos(theta/2); axis*sin(theta/2)]';
+
+end
+
+function R = rotFromQuat(q)
+%%ROTFROMQUAT
+%   Rotation matrix from quaternion
+%
+%   q = rotFromQuat(R) takes a unit quaternion and returns a 3x3 rotation
+%   matrix for that rotation.
+%
+%   2018 Enrico Eberhard
+arguments
+    q (1,4) double
+end
+if any(isnan(q))
+    R = nan(3, 3);
+    return
+end
+
+w = q(1);
+x = q(2);
+y = q(3);
+z = q(4);
+R = [1 - 2*y*y - 2*z*z, 2*x*y - 2*w*z, 2*x*z + 2*w*y;
+    2*x*y + 2*w*z, 1 - 2*x*x - 2*z*z, 2*y*z - 2*w*x;
+    2*x*z - 2*w*y, 2*y*z + 2*w*x, 1 - 2*x*x - 2*y*y];
+
+end
+
 
 %% Custom input validation functions
 function mustBeFigure(fig)
@@ -202,5 +312,21 @@ else
         msg = sprintf("Ax input must only contain 'X', 'Y', or 'Z'.");
         throwAsCaller(MException('SFP:mustBeAx', msg));
     end
+end
+end
+
+function [q, R] = validateRotation(R)
+if size(R, 1) == 3 && size(R, 2) == 3
+    % rotation matrix
+    q = quatFromRot(R);
+elseif size(R, 1) == 1 && size(R, 2) == 4
+    q = R;
+    R = rotFromQuat(q);
+elseif size(R, 1) == 4 && size(R, 2) == 1
+    q = R';
+    R = rotFromQuat(q);
+else
+    throwAsCaller(MException('SFP:mustBeRotation', ...
+        'Input must be a quaternion or 3x3 rotation matrix'));
 end
 end

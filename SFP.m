@@ -261,9 +261,13 @@ classdef SFP < handle
             hSphere.EdgeAlpha = 0.05;
             
             for ax = upper(axes)
+                
+                warnstate = warning;
                 tri = obj.Tri.(ax);
+                warning('off', 'MATLAB:triangulation:PtsNotInTriWarnId');
                 tri = triangulation(tri.ConnectivityList, ...
                     scale.(ax) * tri.Points);
+                warning(warnstate);
                 h = trisurf(tri);
                 
                 h.EdgeAlpha = 0.3;
@@ -271,7 +275,7 @@ classdef SFP < handle
                 h.FaceColor = cols.(ax);
                 
                 
-                hFrame = scatter3(obj.Pts.(ax)(:,1), ...
+                scatter3(obj.Pts.(ax)(:,1), ...
                     obj.Pts.(ax)(:,2), obj.Pts.(ax)(:,3), 'k.');
                 
                 for b = obj.Boundaries.(ax)
@@ -406,15 +410,16 @@ classdef SFP < handle
             end
             q = q ./ norm(q);
             
-            V = hamilton(q, hamilton([0 v], q.*[1 -1 -1 -1]));
+            V = SFP.hamilton(q, SFP.hamilton([0 v], q.*[1 -1 -1 -1]));
             
             v_ = V(2:4);
-            
-            function q = hamilton(q2, q1)
-                q(1) = q1(1)*q2(1)-dot(q1(2:4),q2(2:4));
-                q(2:4) = q1(1)*q2(2:4) + q2(1)*q1(2:4) ...
-                    + cross(q1(2:4),q2(2:4));
-            end
+        end
+        
+        function q = hamilton(q2, q1)
+            % Hamilton product of quaternions
+            q(1) = q1(1)*q2(1)-dot(q1(2:4),q2(2:4));
+            q(2:4) = q1(1)*q2(2:4) + q2(1)*q1(2:4) ...
+                + cross(q1(2:4),q2(2:4));
         end
         
     end
