@@ -230,13 +230,16 @@ classdef SFP < handle
             %   plot(..., axes) takes a character array of axes for
             %   the regions to draw (for example, 'X' or 'YZ'). The default
             %   behaviour is to draw all regions ('XYZ').
+            %
+            %   plot(..., scaleX, scaleY, scaleZ) defines offsets to show 
+            %   overlaying of polygons. Defaults are Z on top of Y on top of X.
             arguments
                 obj
                 fig (1,1) {mustBeFigure(fig)} = figure()
                 axes (1,:) char {mustBeAx(axes)} = 'XYZ'
-                scaleX = 1.00
+                scaleX = 0.99
                 scaleY = 1.00
-                scaleZ = 1.00
+                scaleZ = 1.01
             end
             
             if isnumeric(fig)
