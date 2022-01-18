@@ -214,7 +214,7 @@ classdef SFP < handle
             end
         end
         
-        function plot(obj, fig, axes)
+        function plot(obj, fig, axes, scaleX, scaleY, scaleZ)
             % PLOT Plot the SFP
             %   sfp.plot() renders the spherical frame project in a new
             %   figure. It draws the faces of the projected regions
@@ -234,6 +234,9 @@ classdef SFP < handle
                 obj
                 fig (1,1) {mustBeFigure(fig)} = figure()
                 axes (1,:) char {mustBeAx(axes)} = 'XYZ'
+                scaleX = 1.00
+                scaleY = 1.00
+                scaleZ = 1.00
             end
             
             if isnumeric(fig)
@@ -248,9 +251,9 @@ classdef SFP < handle
             
             % offset the height of each region slightly
             % to properly render overlapping areas
-            scale = struct('X', 0.99, ...
-                'Y', 1.00, ...
-                'Z', 1.01);
+            scale = struct('X', scaleX, ...
+                'Y', scaleY, ...
+                'Z', scaleZ);
             
             hold on;
             hSphere = patch('Faces', obj.Sphere.Faces, ...
