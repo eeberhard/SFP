@@ -214,7 +214,7 @@ classdef SFP < handle
             end
         end
         
-        function plot(obj, fig, axes)
+        function plot(obj, fig, axes, scaleX, scaleY, scaleZ)
             % PLOT Plot the SFP
             %   sfp.plot() renders the spherical frame project in a new
             %   figure. It draws the faces of the projected regions
@@ -230,10 +230,16 @@ classdef SFP < handle
             %   plot(..., axes) takes a character array of axes for
             %   the regions to draw (for example, 'X' or 'YZ'). The default
             %   behaviour is to draw all regions ('XYZ').
+            %
+            %   plot(..., scaleX, scaleY, scaleZ) defines offsets to show 
+            %   overlaying of polygons. Defaults are Z on top of Y on top of X.
             arguments
                 obj
                 fig (1,1) {mustBeFigure(fig)} = figure()
                 axes (1,:) char {mustBeAx(axes)} = 'XYZ'
+                scaleX = 0.99
+                scaleY = 1.00
+                scaleZ = 1.01
             end
             
             if isnumeric(fig)
@@ -248,9 +254,9 @@ classdef SFP < handle
             
             % offset the height of each region slightly
             % to properly render overlapping areas
-            scale = struct('X', 0.99, ...
-                'Y', 1.00, ...
-                'Z', 1.01);
+            scale = struct('X', scaleX, ...
+                'Y', scaleY, ...
+                'Z', scaleZ);
             
             hold on;
             hSphere = patch('Faces', obj.Sphere.Faces, ...
@@ -261,9 +267,13 @@ classdef SFP < handle
             hSphere.EdgeAlpha = 0.05;
             
             for ax = upper(axes)
+                
+                warnstate = warning;
                 tri = obj.Tri.(ax);
+                warning('off', 'MATLAB:triangulation:PtsNotInTriWarnId');
                 tri = triangulation(tri.ConnectivityList, ...
                     scale.(ax) * tri.Points);
+                warning(warnstate);
                 h = trisurf(tri);
                 
                 h.EdgeAlpha = 0.3;
@@ -271,7 +281,7 @@ classdef SFP < handle
                 h.FaceColor = cols.(ax);
                 
                 
-                hFrame = scatter3(obj.Pts.(ax)(:,1), ...
+                scatter3(obj.Pts.(ax)(:,1), ...
                     obj.Pts.(ax)(:,2), obj.Pts.(ax)(:,3), 'k.');
                 
                 for b = obj.Boundaries.(ax)
@@ -406,15 +416,16 @@ classdef SFP < handle
             end
             q = q ./ norm(q);
             
-            V = hamilton(q, hamilton([0 v], q.*[1 -1 -1 -1]));
+            V = SFP.hamilton(q, SFP.hamilton([0 v], q.*[1 -1 -1 -1]));
             
             v_ = V(2:4);
-            
-            function q = hamilton(q2, q1)
-                q(1) = q1(1)*q2(1)-dot(q1(2:4),q2(2:4));
-                q(2:4) = q1(1)*q2(2:4) + q2(1)*q1(2:4) ...
-                    + cross(q1(2:4),q2(2:4));
-            end
+        end
+        
+        function q = hamilton(q2, q1)
+            % Hamilton product of quaternions
+            q(1) = q1(1)*q2(1)-dot(q1(2:4),q2(2:4));
+            q(2:4) = q1(1)*q2(2:4) + q2(1)*q1(2:4) ...
+                + cross(q1(2:4),q2(2:4));
         end
         
     end
